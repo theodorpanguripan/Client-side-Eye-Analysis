@@ -1,0 +1,132 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dog Breed Predictor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #result {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        #preview {
+            max-width: 100%;
+            margin-top: 20px;
+        }
+        #loading {
+            display: none;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Eye Disease Analysis</h1>
+
+    <!-- Form section -->
+    <form id="myForm">
+        <input type="text" id="imageUrl" placeholder="Enter image URL">
+        <button type="submit">Predict</button>
+        <input type="file" id="imageUpload" accept="image/*">
+    </form>
+    
+    <div id="loading">Predicting...</div>
+    <img id="preview" src="" alt="Image preview">
+    <div id="result"></div>
+
+    <script>
+        const API_ENDPOINT = 'http://localhost:3000/api-proxy';
+        var form = document.getElementById("myForm");
+
+        // Prevent default form submission
+        form.addEventListener('submit', function(event) {
+            console.log("Form submission prevented");
+            event.preventDefault();  // Prevent form from refreshing
+            predict();
+        });
+
+        // Prevent form submission on Enter key press in the image URL input
+        document.getElementById("imageUrl").addEventListener("keydown", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                predict();
+            }
+        });
+
+        async function predict() {
+            const imageUrl = document.getElementById('imageUrl').value;
+            const imageFile =  document.getElementById('imageUpload').files[0];
+
+            if (!imageFile && !imageUrl) {
+                alert('Please enter an image URL or select a file.');
+                return;
+            }
+
+            let formData = new FormData();
+            if (imageFile) {
+                formData.append('file', imageFile);
+            } else {
+                formData.append('url', imageUrl);
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').textContent = '';
+
+            try {
+                const startTime = performance.now();
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    body: formData,
+                });
+                const endTime = performance.now();
+                const inferenceTime = ((endTime - startTime) / 1000).toFixed(4);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayResult(data, inferenceTime);
+
+                if (imageUrl) {
+                    document.getElementById('preview').src = imageUrl;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('result').textContent = 'An error occurred: ' + error.message;
+            } finally {
+                console.log("FINISH FETCHING");
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        document.getElementById('imageUpload').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                document.getElementById('imageUrl').value = e.target.result;
+                document.getElementById('preview').src = e.target.result;
+            }
+
+            reader.readAsDataURL(file);
+        });
+
+        function displayResult(data, inferenceTime) {
+            let resultText = `Inference time: ${inferenceTime}s\n\n`;
+            resultText += JSON.stringify(data, null, 2);
+            document.getElementById('result').textContent = resultText;
+        }
+    </script>
+</body>
+</html>
+
+
+
